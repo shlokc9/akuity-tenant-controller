@@ -21,6 +21,9 @@ type TenantSpec struct {
 // TenantStatus describes a Tenant's current status.
 type TenantStatus struct {
 	// TODO: Add fields here that describe a Tenant's current state.
+	
+	// ErrorMessage describes if the namespace exists and is owned by a previous Tenant or not.
+	ErrorMessage string `json:"errorMessage,omitempty"`
 }
 
 // +kubebuilder:object:root=true
