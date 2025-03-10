@@ -43,7 +43,7 @@ func newReconciler(kubeClient client.Client, scheme *runtime.Scheme) *reconciler
 // state of the cluster closer to the desired state.
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	// TODO: Add reconciliation logic here
-	// Initializing a logger for controller reconciliation
+	// Initializing a logger for controller reconciliation.
 	logger := log.FromContext(ctx).WithValues("tenant", req.Name)
 	logger.Info("Starting reconciliation for Tenant")
 
@@ -92,6 +92,29 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, errors.Wrap(err, "failed to get namespace")
 	}
 
+	// Verifying if existing namespace is owned by the current Tenant.
+	logger.Info("Verifying if namespace is owned by the Tenant", "namespace", nsName, "tenant", tenant.Name)
+	if !isNamespaceOwnedByTenant(namespace, tenant) {
+		err := errors.Errorf("namespace %s exists but is not owned by tenant %s", nsName, tenant.Name)
+		logger.Error(err, "Updating the TenantStatus with error message")
+		tenant.Status.ErrorMessage = "Namespace exists and is not owned by this Tenant"
+		if updateErr := r.client.Status().Update(ctx, tenant); updateErr != nil {
+			logger.Error(updateErr, "Failed to update tenant status", "tenant", tenant.Name)
+			return ctrl.Result{}, errors.Wrap(updateErr, "failed to update tenant status")
+		}
+		return ctrl.Result{}, err
+	}
+
 	logger.Info("Reconciliation complete")
 	return ctrl.Result{}, nil
+}
+
+// isNamespaceOwnedByTenant checks if the provided namespace is owned by the given Tenant.
+func isNamespaceOwnedByTenant(ns *corev1.Namespace, tenant *api.Tenant) bool {
+	for _, ownerRef := range ns.OwnerReferences {
+		if ownerRef.UID == tenant.UID && ownerRef.Controller != nil && *ownerRef.Controller {
+			return true
+		}
+	}
+	return false
 }
