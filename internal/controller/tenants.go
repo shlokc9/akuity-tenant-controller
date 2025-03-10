@@ -7,7 +7,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	api "github.com/akuity/tenant-controller/api/v1alpha1"
+	api "github.com/shlokc9/akuity-tenant-controller/api/v1alpha1"
 )
 
 // reconciler reconciles Tenant resources.

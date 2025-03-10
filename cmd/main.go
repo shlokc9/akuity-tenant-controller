@@ -9,8 +9,8 @@ import (
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	api "github.com/akuity/tenant-controller/api/v1alpha1"
-	"github.com/akuity/tenant-controller/internal/controller"
+	api "github.com/shlokc9/akuity-tenant-controller/api/v1alpha1"
+	"github.com/shlokc9/akuity-tenant-controller/internal/controller"
 )
 
 func main() {
