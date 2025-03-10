@@ -40,6 +40,11 @@ spec:
             type: object
           status:
             description: TenantStatus describes a Tenant's current status.
+            properties:
+              errorMessage:
+                description: ErrorMessage describes if the namespace exists and is
+                  owned by a previous Tenant or not.
+                type: string
             type: object
         type: object
     served: true
