@@ -1,0 +1,33 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: tenant-controller
+  labels:
+    app.kubernetes.io/name: tenant-controller
+    app.kubernetes.io/instance: tenant-controller
+    app.kubernetes.io/component: controller
+rules:
+- apiGroups:
+  - network.akuity.io
+  resources:
+  - tenants
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - network.akuity.io
+  resources:
+  - tenants
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - network.akuity.io
+  resources:
+  - tenants
+  verbs:
+  - patch
+# TODO: Add additional rules to permit this controller to manage Namespaces and
+# NetworkPolicies
