@@ -1,4 +1,4 @@
-module github.com/akuity/tenant-controller
+module github.com/shlokc9/akuity-tenant-controller
 
 go 1.22.0
 
