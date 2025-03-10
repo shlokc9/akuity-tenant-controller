@@ -4,7 +4,7 @@ DOCKER_CMD := docker run \
 	-it \
 	--rm \
 	-v $(HOME)/.akuity/gomodcache:/go/pkg/mod \
-	-v $(dir $(realpath $(firstword $(MAKEFILE_LIST)))):/workspaces/tenant-controller \
+	-v "$(dir $(realpath $(firstword $(MAKEFILE_LIST))))":/workspaces/tenant-controller \
 	-w /workspaces/tenant-controller \
 	tenant-controller:dev-tools
 
