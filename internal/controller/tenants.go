@@ -2,9 +2,11 @@ package controller
 
 import (
 	"context"
+	"reflect"
 	"github.com/pkg/errors"
 
 	corev1 "k8s.io/api/core/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -125,6 +127,43 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{Requeue: true}, nil
 	}
 
+	// Building the desired NetworkPolicy based on the Tenant spec.
+	desiredNP := desiredNetworkPolicy(tenant)
+
+	npName := "tenant-network-policy"
+	
+	existingNP := &networkingv1.NetworkPolicy{}
+	if err := r.client.Get(ctx, client.ObjectKey{Name: npName, Namespace: nsName}, existingNP); err != nil {
+		if k8serrors.IsNotFound(err) {
+			logger.Info("NetworkPolicy not found. Creating new NP", "networkPolicy", npName)
+			// Setting the Tenant as the owner of the NetworkPolicy.
+			if err := controllerutil.SetControllerReference(tenant, desiredNP, r.scheme); err != nil {
+				logger.Error(err, "Failed to set owner reference for network policy", "networkPolicy", npName)
+				return ctrl.Result{}, errors.Wrap(err, "failed to set owner reference for network policy")
+			}
+			if err := r.client.Create(ctx, desiredNP); err != nil {
+				logger.Error(err, "Failed to create network policy", "networkPolicy", npName)
+				return ctrl.Result{}, errors.Wrap(err, "failed to create network policy")
+			}
+			logger.Info("NetworkPolicy created successfully", "networkPolicy", npName)
+			return ctrl.Result{Requeue: true}, nil
+		}
+		logger.Error(err, "Failed to get network policy", "networkPolicy", npName)
+		return ctrl.Result{}, errors.Wrap(err, "failed to get network policy")
+	} else {
+		// Comparing the existing NetworkPolicy spec with the desired one.
+		if !networkPolicyEqual(existingNP, desiredNP) {
+			logger.Info("NetworkPolicy spec does not match desired state. Updating the existing NP", "networkPolicy", npName)
+			existingNP.Spec = desiredNP.Spec
+			if err := r.client.Update(ctx, existingNP); err != nil {
+				logger.Error(err, "Failed to update network policy", "networkPolicy", npName)
+				return ctrl.Result{}, errors.Wrap(err, "failed to update network policy")
+			}
+			logger.Info("NetworkPolicy updated successfully", "networkPolicy", npName)
+			return ctrl.Result{Requeue: true}, nil
+		}
+	}
+
 	logger.Info("Reconciliation complete for Tenant", "tenant", tenant.Name)
 	return ctrl.Result{}, nil
 }
@@ -152,4 +191,64 @@ func equalLabels(a, b map[string]string) bool {
 		}
 	}
 	return true
+}
+
+// desiredNetworkPolicy constructs the desired NetworkPolicy for the given Tenant.
+func desiredNetworkPolicy(tenant *api.Tenant) *networkingv1.NetworkPolicy {
+	ns := tenant.Name
+	np := &networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "tenant-network-policy",
+			Namespace: ns,
+		},
+		Spec: networkingv1.NetworkPolicySpec{
+			// This policy applies to all pods in the Tenant's namespace.
+			PodSelector: metav1.LabelSelector{},
+			PolicyTypes: []networkingv1.PolicyType{"Ingress", "Egress"},
+			Ingress: []networkingv1.NetworkPolicyIngressRule{
+				{
+					From: []networkingv1.NetworkPolicyPeer{
+						{
+							// An empty PodSelector here allows all traffic from pods within the same namespace.
+							PodSelector: &metav1.LabelSelector{},
+						},
+					},
+				},
+			},
+			Egress: buildEgressRules(tenant.Spec.AllowEgress),
+		},
+	}
+	return np
+}
+
+// buildEgressRules returns a slice of egress rules based on whether external egress is allowed.
+func buildEgressRules(allowEgress bool) []networkingv1.NetworkPolicyEgressRule {
+	rules := []networkingv1.NetworkPolicyEgressRule{
+		{
+			To: []networkingv1.NetworkPolicyPeer{
+				{
+					// An empty PodSelector here allows all traffic to pods within the same namespace.
+					PodSelector: &metav1.LabelSelector{},
+				},
+			},
+		},
+	}
+	if allowEgress {
+		// Allow egress traffic to external destinations outside cluster.
+		rules = append(rules, networkingv1.NetworkPolicyEgressRule{
+			To: []networkingv1.NetworkPolicyPeer{
+				{
+					IPBlock: &networkingv1.IPBlock{
+						CIDR: "0.0.0.0/0",
+					},
+				},
+			},
+		})
+	}
+	return rules
+}
+
+// networkPolicyEqual compares if two NetworkPolicy objects are equal based on their spec.
+func networkPolicyEqual(a, b *networkingv1.NetworkPolicy) bool {
+	return reflect.DeepEqual(a.Spec, b.Spec)
 }
