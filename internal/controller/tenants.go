@@ -105,16 +105,15 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		return ctrl.Result{}, err
 	}
 
-	// Build the desired labels: the mandatory label plus any additional labels from the Tenant spec.
+	// Building the desired labels: the mandatory label plus any additional labels from the Tenant spec.
 	desiredLabels := map[string]string{
 		"akuity.io/tenant": "true",
 	}
-	// Assuming tenant.Spec.AdditionalLabels is defined (as a map[string]string).
 	for key, value := range tenant.Spec.AdditionalLabels {
 		desiredLabels[key] = value
 	}
 
-	// Check if the current namespace labels match the desired labels.
+	// Checking if the current namespace labels match the desired labels.
 	if !equalLabels(namespace.Labels, desiredLabels) {
 		logger.Info("Namespace labels do not match desired state. Updating labels.", "namespace", nsName, "desiredLabels", desiredLabels)
 		namespace.Labels = desiredLabels
@@ -125,8 +124,6 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 		logger.Info("Namespace labels updated", "namespace", nsName)
 		return ctrl.Result{Requeue: true}, nil
 	}
-
-	// Continue with additional reconciliation logic (e.g., NetworkPolicy management).
 
 	logger.Info("Reconciliation complete for Tenant", "tenant", tenant.Name)
 	return ctrl.Result{}, nil
