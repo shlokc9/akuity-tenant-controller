@@ -17,14 +17,16 @@ type Tenant struct {
 type TenantSpec struct {
 	// TODO: Add fields here that describe a Tenant's desired state.
 
-	// AdditionalLabels describes new key-value pairs that user wants to add to namespace labels
+	// AdditionalLabels describes new key-value pairs that user wants to add to namespace labels.
 	AdditionalLabels map[string]string `json:"additionalLabels,omitempty"`
+	// AllowEgress is a bool value that controls if pods may send traffic outside the cluster or not.
+	AllowEgress bool `json:"allowEgress,omitempty"`
 }
 
 // TenantStatus describes a Tenant's current status.
 type TenantStatus struct {
 	// TODO: Add fields here that describe a Tenant's current state.
-	
+
 	// ErrorMessage describes if the namespace exists and is owned by a previous Tenant or not.
 	ErrorMessage string `json:"errorMessage,omitempty"`
 }
