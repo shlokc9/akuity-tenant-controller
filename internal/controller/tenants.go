@@ -105,6 +105,9 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 					},
 				},
 			}
+			for key, value := range tenant.Spec.AdditionalLabels {
+				newNS.ObjectMeta.Labels[key] = value
+			}
 			logger.Info("Setting the Tenant as the owner of the namespace", Namespace, nsName)
 			if err := controllerutil.SetControllerReference(tenant, newNS, r.scheme); err != nil {
 				logger.Error(err, "Failed to set owner reference for namespace", Namespace, nsName)
