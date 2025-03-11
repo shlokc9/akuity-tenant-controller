@@ -8,12 +8,15 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	api "github.com/shlokc9/akuity-tenant-controller/api/v1alpha1"
 	"github.com/shlokc9/akuity-tenant-controller/internal/controller"
 )
 
 func main() {
+	ctrl.SetLogger(zap.New(zap.UseDevMode(false)))
+
 	ctx := context.Background()
 
 	restCfg, err := rest.InClusterConfig()
