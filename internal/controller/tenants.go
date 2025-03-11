@@ -21,9 +21,6 @@ import (
 	api "github.com/shlokc9/akuity-tenant-controller/api/v1alpha1"
 )
 
-// tenantFinalizer is used to ensure cleanup when a Tenant resource is deleted.
-const tenantFinalizer = "tenant.finalizers.akuity.io"
-
 // reconciler reconciles Tenant resources.
 type reconciler struct {
 	client client.Client
@@ -50,7 +47,7 @@ func newReconciler(kubeClient client.Client, scheme *runtime.Scheme) *reconciler
 func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	// TODO: Add reconciliation logic here
 	// Initializing a logger for controller reconciliation.
-	logger := log.FromContext(ctx).WithValues("tenant", req.Name)
+	logger := log.FromContext(ctx).WithValues(Tenant, req.Name)
 	logger.Info("Starting reconciliation for Tenant")
 
 	// Fetching the Tenant resource.
@@ -73,18 +70,18 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			return ctrl.Result{}, errors.Wrap(err, "failed to finalize Tenant")
 		}
 		// Removing the finalizer and update the Tenant.
-		tenant.Finalizers = removeString(tenant.Finalizers, tenantFinalizer)
+		tenant.Finalizers = removeString(tenant.Finalizers, TenantFinalizer)
 		if err := r.client.Update(ctx, tenant); err != nil {
 			logger.Error(err, "Failed to remove finalizer from Tenant")
 			return ctrl.Result{}, errors.Wrap(err, "failed to remove finalizer")
 		}
-		logger.Info("Finalization complete; Tenant deleted")
+		logger.Info("Finalization complete. Tenant deleted")
 		return ctrl.Result{}, nil
 	}
 
 	// Ensuring the Tenant has our finalizer if not deleting.
-	if !containsString(tenant.Finalizers, tenantFinalizer) {
-		tenant.Finalizers = append(tenant.Finalizers, tenantFinalizer)
+	if !containsString(tenant.Finalizers, TenantFinalizer) {
+		tenant.Finalizers = append(tenant.Finalizers, TenantFinalizer)
 		if err := r.client.Update(ctx, tenant); err != nil {
 			logger.Error(err, "Failed to add finalizer to Tenant")
 			return ctrl.Result{}, errors.Wrap(err, "failed to add finalizer")
@@ -99,39 +96,39 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	err := r.client.Get(ctx, client.ObjectKey{Name: nsName}, namespace)
 	if err != nil {
 		if k8serrors.IsNotFound(err) {
-			logger.Info("Namespace not found. Creating new namespace", "namespace", nsName)
+			logger.Info("Namespace not found. Creating new namespace", Namespace, nsName)
 			newNS := &corev1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: nsName,
 					Labels: map[string]string{
-						"akuity.io/tenant": "true",
+						MandatoryLabelKey: MandatoryLabelValue,
 					},
 				},
 			}
-			logger.Info("Setting the Tenant as the owner of the namespace", "namespace", nsName)
+			logger.Info("Setting the Tenant as the owner of the namespace", Namespace, nsName)
 			if err := controllerutil.SetControllerReference(tenant, newNS, r.scheme); err != nil {
-				logger.Error(err, "Failed to set owner reference for namespace", "namespace", nsName)
+				logger.Error(err, "Failed to set owner reference for namespace", Namespace, nsName)
 				return ctrl.Result{}, errors.Wrap(err, "failed to set owner reference")
 			}
 			if err := r.client.Create(ctx, newNS); err != nil {
-				logger.Error(err, "Failed to create namespace", "namespace", nsName)
+				logger.Error(err, "Failed to create namespace", Namespace, nsName)
 				return ctrl.Result{}, errors.Wrap(err, "failed to create namespace")
 			}
-			logger.Info("Namespace created successfully", "namespace", nsName)
+			logger.Info("Namespace created successfully", Namespace, nsName)
 			return ctrl.Result{Requeue: true}, nil
 		}
-		logger.Error(err, "Failed to get namespace", "namespace", nsName)
+		logger.Error(err, "Failed to get namespace", Namespace, nsName)
 		return ctrl.Result{}, errors.Wrap(err, "failed to get namespace")
 	}
 
 	// Verifying if existing namespace is owned by the current Tenant.
-	logger.Info("Verifying if namespace is owned by the Tenant", "namespace", nsName, "tenant", tenant.Name)
+	logger.Info("Verifying if namespace is owned by the Tenant", Namespace, nsName, Tenant, tenant.Name)
 	if !isNamespaceOwnedByTenant(namespace, tenant) {
 		err := errors.Errorf("namespace %s exists but is not owned by tenant %s", nsName, tenant.Name)
 		logger.Error(err, "Updating the TenantStatus with error message")
 		tenant.Status.ErrorMessage = "Namespace exists and is not owned by this Tenant"
 		if updateErr := r.client.Status().Update(ctx, tenant); updateErr != nil {
-			logger.Error(updateErr, "Failed to update tenant status", "tenant", tenant.Name)
+			logger.Error(updateErr, "Failed to update tenant status", Tenant, tenant.Name)
 			return ctrl.Result{}, errors.Wrap(updateErr, "failed to update tenant status")
 		}
 		return ctrl.Result{}, err
@@ -139,7 +136,7 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// Building the desired labels: the mandatory label plus any additional labels from the Tenant spec.
 	desiredLabels := map[string]string{
-		"akuity.io/tenant": "true",
+		MandatoryLabelKey: MandatoryLabelValue,
 	}
 	for key, value := range tenant.Spec.AdditionalLabels {
 		desiredLabels[key] = value
@@ -147,65 +144,62 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 
 	// Checking if the current namespace labels match the desired labels.
 	if !equalLabels(namespace.Labels, desiredLabels) {
-		logger.Info("Namespace labels do not match desired state. Updating labels.", "namespace", nsName, "desiredLabels", desiredLabels)
+		logger.Info("Namespace labels do not match desired state. Updating labels.", Namespace, nsName, DesiredLabels, desiredLabels)
 		namespace.Labels = desiredLabels
 		if err := r.client.Update(ctx, namespace); err != nil {
-			logger.Error(err, "Failed to update namespace labels", "namespace", nsName)
+			logger.Error(err, "Failed to update namespace labels", Namespace, nsName)
 			return ctrl.Result{}, errors.Wrap(err, "failed to update namespace labels")
 		}
-		logger.Info("Namespace labels updated", "namespace", nsName)
+		logger.Info("Namespace labels updated", Namespace, nsName)
 		return ctrl.Result{Requeue: true}, nil
 	}
 
 	// Building the desired NetworkPolicy based on the Tenant spec.
-	desiredNP := desiredNetworkPolicy(tenant)
-
-	npName := "tenant-network-policy"
-	
+	desiredNP := desiredNetworkPolicy(tenant)	
 	existingNP := &networkingv1.NetworkPolicy{}
-	if err := r.client.Get(ctx, client.ObjectKey{Name: npName, Namespace: nsName}, existingNP); err != nil {
+	if err := r.client.Get(ctx, client.ObjectKey{Name: TenantNetworkPolicyName, Namespace: nsName}, existingNP); err != nil {
 		if k8serrors.IsNotFound(err) {
-			logger.Info("NetworkPolicy not found. Creating new NP", "networkPolicy", npName)
+			logger.Info("NetworkPolicy not found. Creating new NP", NetworkPolicy, TenantNetworkPolicyName)
 			// Setting the Tenant as the owner of the NetworkPolicy.
 			if err := controllerutil.SetControllerReference(tenant, desiredNP, r.scheme); err != nil {
-				logger.Error(err, "Failed to set owner reference for network policy", "networkPolicy", npName)
+				logger.Error(err, "Failed to set owner reference for network policy", NetworkPolicy, TenantNetworkPolicyName)
 				return ctrl.Result{}, errors.Wrap(err, "failed to set owner reference for network policy")
 			}
 			if err := r.client.Create(ctx, desiredNP); err != nil {
-				logger.Error(err, "Failed to create network policy", "networkPolicy", npName)
+				logger.Error(err, "Failed to create network policy", NetworkPolicy, TenantNetworkPolicyName)
 				return ctrl.Result{}, errors.Wrap(err, "failed to create network policy")
 			}
-			logger.Info("NetworkPolicy created successfully", "networkPolicy", npName)
+			logger.Info("NetworkPolicy created successfully", NetworkPolicy, TenantNetworkPolicyName)
 			return ctrl.Result{Requeue: true}, nil
 		}
-		logger.Error(err, "Failed to get network policy", "networkPolicy", npName)
+		logger.Error(err, "Failed to get network policy", NetworkPolicy, TenantNetworkPolicyName)
 		return ctrl.Result{}, errors.Wrap(err, "failed to get network policy")
 	} else {
 		// Comparing the existing NetworkPolicy spec with the desired one.
 		if !networkPolicyEqual(existingNP, desiredNP) {
-			logger.Info("NetworkPolicy spec does not match desired state. Updating the existing NP", "networkPolicy", npName)
+			logger.Info("NetworkPolicy spec does not match desired state. Updating the existing NP", NetworkPolicy, TenantNetworkPolicyName)
 			existingNP.Spec = desiredNP.Spec
 			if err := r.client.Update(ctx, existingNP); err != nil {
-				logger.Error(err, "Failed to update network policy", "networkPolicy", npName)
+				logger.Error(err, "Failed to update network policy", NetworkPolicy, TenantNetworkPolicyName)
 				return ctrl.Result{}, errors.Wrap(err, "failed to update network policy")
 			}
-			logger.Info("NetworkPolicy updated successfully", "networkPolicy", npName)
+			logger.Info("NetworkPolicy updated successfully", NetworkPolicy, TenantNetworkPolicyName)
 			return ctrl.Result{Requeue: true}, nil
 		}
 	}
 
-	logger.Info("Reconciliation complete for Tenant", "tenant", tenant.Name)
+	logger.Info("Reconciliation complete for Tenant", Tenant, tenant.Name)
 	return ctrl.Result{}, nil
 }
 
 // finalizeTenant handles cleanup when a Tenant is being deleted.
 func (r *reconciler) finalizeTenant(ctx context.Context, tenant *api.Tenant) error {
-	logger := log.FromContext(ctx).WithValues("tenant", tenant.Name)
+	logger := log.FromContext(ctx).WithValues(Tenant, tenant.Name)
 	nsName := tenant.Name
 	namespace := &corev1.Namespace{}
 	if err := r.client.Get(ctx, client.ObjectKey{Name: nsName}, namespace); err != nil {
 		if k8serrors.IsNotFound(err) {
-			logger.Info("Namespace already deleted", "namespace", nsName)
+			logger.Info("Namespace already deleted", Namespace, nsName)
 			return nil
 		}
 		return errors.Wrap(err, "failed to get namespace during finalization")
@@ -214,7 +208,7 @@ func (r *reconciler) finalizeTenant(ctx context.Context, tenant *api.Tenant) err
 	if err := r.client.Delete(ctx, namespace); err != nil {
 		return errors.Wrap(err, "failed to delete namespace during finalization")
 	}
-	logger.Info("Namespace deletion initiated", "namespace", nsName)
+	logger.Info("Namespace deletion initiated", Namespace, nsName)
 	return nil
 }
 
@@ -248,13 +242,13 @@ func desiredNetworkPolicy(tenant *api.Tenant) *networkingv1.NetworkPolicy {
 	ns := tenant.Name
 	np := &networkingv1.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      "tenant-network-policy",
+			Name:      TenantNetworkPolicyName,
 			Namespace: ns,
 		},
 		Spec: networkingv1.NetworkPolicySpec{
 			// This policy applies to all pods in the Tenant's namespace.
 			PodSelector: metav1.LabelSelector{},
-			PolicyTypes: []networkingv1.PolicyType{"Ingress", "Egress"},
+			PolicyTypes: []networkingv1.PolicyType{IngressPolicyType, EgressPolicyType},
 			Ingress: []networkingv1.NetworkPolicyIngressRule{
 				{
 					From: []networkingv1.NetworkPolicyPeer{
@@ -289,7 +283,7 @@ func buildEgressRules(allowEgress bool) []networkingv1.NetworkPolicyEgressRule {
 			To: []networkingv1.NetworkPolicyPeer{
 				{
 					IPBlock: &networkingv1.IPBlock{
-						CIDR: "0.0.0.0/0",
+						CIDR: ExternalEgressCIDR,
 					},
 				},
 			},
