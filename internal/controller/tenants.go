@@ -1,10 +1,9 @@
 package controller
 
 import (
-	"slices"
 	"context"
 	"reflect"
-	"github.com/pkg/errors"
+	"slices"
 
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
@@ -18,6 +17,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/pkg/errors"
 	api "github.com/shlokc9/akuity-tenant-controller/api/v1alpha1"
 )
 
@@ -32,6 +32,8 @@ type reconciler struct {
 func SetupReconcilerWithManager(mgr manager.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&api.Tenant{}).
+		Owns(&corev1.Namespace{}).
+		Owns(&networkingv1.NetworkPolicy{}).
 		Complete(newReconciler(mgr.GetClient(), mgr.GetScheme()))
 }
 
