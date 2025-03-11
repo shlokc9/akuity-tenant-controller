@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"slices"
 	"context"
 	"reflect"
 	"github.com/pkg/errors"
@@ -19,6 +20,9 @@ import (
 
 	api "github.com/shlokc9/akuity-tenant-controller/api/v1alpha1"
 )
+
+// tenantFinalizer is used to ensure cleanup when a Tenant resource is deleted.
+const tenantFinalizer = "tenant.finalizers.akuity.io"
 
 // reconciler reconciles Tenant resources.
 type reconciler struct {
@@ -59,6 +63,32 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 			logger.Error(err, "Failed to get Tenant resource")
 		}
 		return ctrl.Result{}, client.IgnoreNotFound(err)
+	}
+
+	// Running finalization logic if the Tenant is marked for deletion.
+	if tenant.ObjectMeta.DeletionTimestamp != nil {
+		logger.Info("Tenant is marked for deletion; starting finalization")
+		if err := r.finalizeTenant(ctx, tenant); err != nil {
+			logger.Error(err, "Failed to finalize Tenant")
+			return ctrl.Result{}, errors.Wrap(err, "failed to finalize Tenant")
+		}
+		// Removing the finalizer and update the Tenant.
+		tenant.Finalizers = removeString(tenant.Finalizers, tenantFinalizer)
+		if err := r.client.Update(ctx, tenant); err != nil {
+			logger.Error(err, "Failed to remove finalizer from Tenant")
+			return ctrl.Result{}, errors.Wrap(err, "failed to remove finalizer")
+		}
+		logger.Info("Finalization complete; Tenant deleted")
+		return ctrl.Result{}, nil
+	}
+
+	// Ensuring the Tenant has our finalizer if not deleting.
+	if !containsString(tenant.Finalizers, tenantFinalizer) {
+		tenant.Finalizers = append(tenant.Finalizers, tenantFinalizer)
+		if err := r.client.Update(ctx, tenant); err != nil {
+			logger.Error(err, "Failed to add finalizer to Tenant")
+			return ctrl.Result{}, errors.Wrap(err, "failed to add finalizer")
+		}
 	}
 
 	// Using the Tenant's name as the namespace name.
@@ -168,6 +198,26 @@ func (r *reconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Resu
 	return ctrl.Result{}, nil
 }
 
+// finalizeTenant handles cleanup when a Tenant is being deleted.
+func (r *reconciler) finalizeTenant(ctx context.Context, tenant *api.Tenant) error {
+	logger := log.FromContext(ctx).WithValues("tenant", tenant.Name)
+	nsName := tenant.Name
+	namespace := &corev1.Namespace{}
+	if err := r.client.Get(ctx, client.ObjectKey{Name: nsName}, namespace); err != nil {
+		if k8serrors.IsNotFound(err) {
+			logger.Info("Namespace already deleted", "namespace", nsName)
+			return nil
+		}
+		return errors.Wrap(err, "failed to get namespace during finalization")
+	}
+	// Deleting the namespace.
+	if err := r.client.Delete(ctx, namespace); err != nil {
+		return errors.Wrap(err, "failed to delete namespace during finalization")
+	}
+	logger.Info("Namespace deletion initiated", "namespace", nsName)
+	return nil
+}
+
 // isNamespaceOwnedByTenant checks if the provided namespace is owned by the given Tenant.
 func isNamespaceOwnedByTenant(ns *corev1.Namespace, tenant *api.Tenant) bool {
 	for _, ownerRef := range ns.OwnerReferences {
@@ -251,4 +301,20 @@ func buildEgressRules(allowEgress bool) []networkingv1.NetworkPolicyEgressRule {
 // networkPolicyEqual compares if two NetworkPolicy objects are equal based on their spec.
 func networkPolicyEqual(a, b *networkingv1.NetworkPolicy) bool {
 	return reflect.DeepEqual(a.Spec, b.Spec)
+}
+
+// containsString checks if a slice contains a given string.
+func containsString(slice []string, s string) bool {
+	return slices.Contains(slice, s)
+}
+
+// removeString removes a string from a slice.
+func removeString(slice []string, s string) []string {
+	newSlice := []string{}
+	for _, item := range slice {
+		if item != s {
+			newSlice = append(newSlice, item)
+		}
+	}
+	return newSlice
 }
