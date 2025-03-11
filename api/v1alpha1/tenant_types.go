@@ -16,6 +16,9 @@ type Tenant struct {
 // TenantSpec describes a Tenant's desired state.
 type TenantSpec struct {
 	// TODO: Add fields here that describe a Tenant's desired state.
+
+	// AdditionalLabels describes new key-value pairs that user wants to add to namespace labels
+	AdditionalLabels map[string]string `json:"additionalLabels,omitempty"`
 }
 
 // TenantStatus describes a Tenant's current status.
