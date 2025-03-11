@@ -37,6 +37,12 @@ spec:
             type: object
           spec:
             description: TenantSpec describes a Tenant's desired state.
+            properties:
+              additionalLabels:
+                additionalProperties:
+                  type: string
+                description: AdditionalLabels describes new key-value pairs that user wants to add to namespace labels
+                type: object
             type: object
           status:
             description: TenantStatus describes a Tenant's current status.
