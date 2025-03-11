@@ -41,8 +41,13 @@ spec:
               additionalLabels:
                 additionalProperties:
                   type: string
-                description: AdditionalLabels describes new key-value pairs that user wants to add to namespace labels
+                description: AdditionalLabels describes new key-value pairs that user
+                  wants to add to namespace labels.
                 type: object
+              allowEgress:
+                description: AllowEgress is a bool value that controls if pods may
+                  send traffic outside the cluster or not.
+                type: boolean
             type: object
           status:
             description: TenantStatus describes a Tenant's current status.
