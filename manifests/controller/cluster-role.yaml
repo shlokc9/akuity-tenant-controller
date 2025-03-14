@@ -15,19 +15,31 @@ rules:
   - get
   - list
   - watch
-- apiGroups:
-  - network.akuity.io
+  - patch
+  - update
+# TODO: Add additional rules to permit this controller to manage Namespaces and
+# NetworkPolicies
+- apiGroups: 
+  - ""
   resources:
-  - tenants
+  - namespaces
   verbs:
   - get
   - list
   - watch
-- apiGroups:
-  - network.akuity.io
-  resources:
-  - tenants
-  verbs:
+  - create
+  - update
   - patch
-# TODO: Add additional rules to permit this controller to manage Namespaces and
-# NetworkPolicies
+  - delete
+- apiGroups: 
+  - networking.k8s.io
+  resources:
+  - networkpolicies
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
