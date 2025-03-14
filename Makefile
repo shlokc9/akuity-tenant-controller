@@ -52,7 +52,7 @@ deploy: build-dev-tools build
 	# TODO: Uncomment one of the following lines as needed. Note that Orbstack's
 	# and Docker Desktop's Kubernetes clusters may not require you to do anything
 	# special to load images into the cluster.
-	# kind load docker-image tenant-controller=tenant-controller:$$($(GET_IMAGE_DIGEST))
+	kind load docker-image tenant-controller:$$($(GET_IMAGE_DIGEST))
 	# k3d image import tenant-controller=tenant-controller:$$($(GET_IMAGE_DIGEST))
 	# minikube image load tenant-controller=tenant-controller:$$($(GET_IMAGE_DIGEST))
 	rm -rf deploy
