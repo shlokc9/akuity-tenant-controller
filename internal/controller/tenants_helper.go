@@ -191,6 +191,9 @@ func (r *reconciler) syncNetworkPolicy(ctx context.Context, tenant *api.Tenant) 
 
 // waitForNamespaceToBeActive waits until the Namespace becomes Active.
 func (r *reconciler) waitForNamespaceToBeActive(ctx context.Context, nsName string) error {
+	if r.disableWait {
+		return nil
+	}
 	return wait.PollUntilContextTimeout(ctx, 2*time.Second, 30*time.Second,
 		true, func(ctx context.Context) (bool, error) {
 	   ns := &corev1.Namespace{}
@@ -207,8 +210,11 @@ func (r *reconciler) waitForNamespaceToBeActive(ctx context.Context, nsName stri
    })
 }
 
-// waitForNamespaceToBeActive waits until the NetworkPolicy is Created.
+// waitForNetworkPolicyToBeActive waits until the NetworkPolicy is Created.
 func (r *reconciler) waitForNetworkPolicyToBeActive(ctx context.Context, npKey client.ObjectKey) error {
+	if r.disableWait {
+		return nil
+	}
 	return wait.PollUntilContextTimeout(ctx, 2*time.Second, 30*time.Second,
 		 true, func(ctx context.Context) (bool, error) {
 		np := &networkingv1.NetworkPolicy{}

@@ -20,6 +20,7 @@ import (
 type reconciler struct {
 	client client.Client
 	scheme *runtime.Scheme
+	disableWait bool
 }
 
 // SetupReconcilerWithManager initializes a reconciler for Tenant resources and
@@ -37,6 +38,7 @@ func newReconciler(kubeClient client.Client, scheme *runtime.Scheme) *reconciler
 	return &reconciler{
 		client: kubeClient,
 		scheme: scheme,
+		disableWait: false,
 	}
 }
 
