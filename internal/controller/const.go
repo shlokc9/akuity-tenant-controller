@@ -5,6 +5,7 @@ const (
 	TenantFinalizer = "tenant.finalizers.akuity.io"
 
 	// Mandatory label key and value for namespaces created via a Tenant.
+	K8SSystemGeneratedKey = "kubernetes.io/metadata.name"
 	MandatoryLabelKey   = "akuity.io/tenant"
 	MandatoryLabelValue = "true"
 
