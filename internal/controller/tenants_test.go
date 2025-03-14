@@ -2,6 +2,7 @@ package controller
 
 // TODO: Add tests for the Tenant reconciler
 import (
+	"time"
 	"context"
 	"strings"
 	"testing"
@@ -131,6 +132,7 @@ func TestUpdateNamespaceLabels(t *testing.T) {
 
 	// Checking if expected Labels from Tenant Resource were added to Namespace Labels.
 	expectedInitialLabels := map[string]string{
+		K8SSystemGeneratedKey: ns.Name,
 		MandatoryLabelKey: MandatoryLabelValue,
 		"foo":             "bar",
 	}
@@ -168,6 +170,7 @@ func TestUpdateNamespaceLabels(t *testing.T) {
 
 	// Checking if expected Labels from Tenant Resource were added to Namespace Labels.
 	expectedUpdatedLabels := map[string]string{
+		K8SSystemGeneratedKey: updatedNS.Name,
 		MandatoryLabelKey: MandatoryLabelValue,
 		"foo":             "baz",
 		"new":             "label",
@@ -251,6 +254,7 @@ func TestNamespaceSyncAfterDirectUpdate(t *testing.T) {
 
 	// Checking if expected Labels from Tenant Resource were added to Namespace Labels.
 	expectedLabels := map[string]string{
+		K8SSystemGeneratedKey: ns.Name,
 		MandatoryLabelKey: MandatoryLabelValue,
 		"foo":             "bar",
 	}
@@ -338,6 +342,7 @@ func TestNamespaceSyncAfterDirectDelete(t *testing.T) {
 
 	// Checking if expected Labels from Tenant Resource were added to Namespace Labels.
 	expectedLabels := map[string]string{
+		K8SSystemGeneratedKey: ns.Name,
 		MandatoryLabelKey: MandatoryLabelValue,
 		"foo":             "bar",
 	}
@@ -480,6 +485,12 @@ func createNewScheme(t *testing.T) *runtime.Scheme {
 	if err := api.AddToScheme(scheme); err != nil {
 		t.Fatal(err)
 	}
+	if err := corev1.AddToScheme(scheme); err != nil {
+		t.Fatal(err)
+	}
+	if err := networkingv1.AddToScheme(scheme); err != nil {
+		t.Fatal(err)
+	}
 	return scheme
 }
 
@@ -515,6 +526,7 @@ func createClientReconcilerAndRequest(
 	r := &reconciler{
 		client: c,
 		scheme: scheme,
+		disableWait: true,
 	}
 	req := ctrl.Request{
 		NamespacedName: client.ObjectKeyFromObject(tenant),
