@@ -508,7 +508,7 @@ func createClientReconcilerAndRequest(
 					Build()
 	var c client.WithWatch
 	if errorPredicate != nil {
-		c = &errorClient{WithWatch: fakeClient, updateErrorFunc: errorPredicate}
+		c = &errorClient{WithWatch: fakeClient, errorFunc: errorPredicate}
 	} else {
 		c = fakeClient
 	}
@@ -554,13 +554,13 @@ func simulateReconcileAndRequeue(
 // errorClient wraps a client.WithWatch.
 type errorClient struct {
 	client.WithWatch
-	updateErrorFunc func(obj client.Object) error
+	errorFunc func(obj client.Object) error
 }
 
 // This helper function simulates an update error when updating a Tenant using an error predicate.
 func (e *errorClient) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
-	if e.updateErrorFunc != nil {
-		if err := e.updateErrorFunc(obj); err != nil {
+	if e.errorFunc != nil {
+		if err := e.errorFunc(obj); err != nil {
 			return err
 		}
 	}
