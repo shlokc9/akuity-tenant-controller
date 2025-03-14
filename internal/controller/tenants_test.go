@@ -476,6 +476,115 @@ func TestTenantCleanupProcess(t *testing.T) {
 	}
 }
 
+// This test verifies the TestWaitForNamespaceToBeActive function which we disable in the entire test suite.
+func TestWaitForNamespaceToBeActive(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Setting up the scheme.
+	scheme := createNewScheme(t)
+
+	// Building a fake client with no pre-created Namespace.
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+
+	// Creating a reconciler with disableWait set to false.
+	r := &reconciler{
+		client:      fakeClient,
+		scheme:      scheme,
+		disableWait: false,
+	}
+
+	// Defining the Namespace name we expect.
+	nsName := "test-namespace"
+
+	// Running waitForNamespaceToBeActive in a separate goroutine.
+	errCh := make(chan error)
+	go func() {
+		errCh <- r.waitForNamespaceToBeActive(ctx, nsName)
+	}()
+
+	// Simulating a delay before the Namespace is created.
+	time.Sleep(3 * time.Second)
+
+	// Creating the Namespace in the fake client.
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: nsName,
+		},
+		Status: corev1.NamespaceStatus{
+			Phase: corev1.NamespaceActive,
+		},
+	}
+	if err := fakeClient.Create(ctx, ns); err != nil {
+		t.Fatalf("failed to create namespace: %v", err)
+	}
+
+	// Waiting for waitForNamespaceToBeActive to finish.
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("expected waitForNamespaceToBeActive to succeed, but got error: %v", err)
+		}
+	case <-ctx.Done():
+		t.Fatalf("timed out waiting for namespace to become active")
+	}
+}
+
+// This test verifies the WaitForNetworkPolicyToBeActive function which we disable in the entire test suite.
+func TestWaitForNetworkPolicyToBeActive(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Setting up scheme.
+	scheme := createNewScheme(t)
+
+	// Building a fake client with no pre-created NetworkPolicy.
+	fakeClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+
+	// Creating a reconciler with disableWait set to false.
+	r := &reconciler{
+		client:      fakeClient,
+		scheme:      scheme,
+		disableWait: false,
+	}
+
+	// Defining the key for the NetworkPolicy we expect.
+	npKey := client.ObjectKey{Name: TenantNetworkPolicyName, Namespace: "test-namespace"}
+
+	// Running waitForNetworkPolicyToBeActive in a separate goroutine.
+	errCh := make(chan error)
+	go func() {
+		errCh <- r.waitForNetworkPolicyToBeActive(ctx, npKey)
+	}()
+
+	// Simulating a delay before the NetworkPolicy is created.
+	time.Sleep(3 * time.Second)
+
+	// Creating the NetworkPolicy in the fake client.
+	np := &networkingv1.NetworkPolicy{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      TenantNetworkPolicyName,
+			Namespace: "test-namespace",
+		},
+		Spec: networkingv1.NetworkPolicySpec{
+			PodSelector: metav1.LabelSelector{},
+		},
+	}
+	if err := fakeClient.Create(ctx, np); err != nil {
+		t.Fatalf("failed to create network policy: %v", err)
+	}
+
+	// Waiting for waitForNetworkPolicyToBeActive to finish.
+	select {
+	case err := <-errCh:
+		if err != nil {
+			t.Fatalf("expected waitForNetworkPolicyToBeActive to succeed, but got error: %v", err)
+		}
+	case <-ctx.Done():
+		t.Fatalf("timed out waiting for network policy to become active")
+	}
+}
+
 // This helper function returns a new Scheme after adding Client-Go and Tenant API to it.
 func createNewScheme(t *testing.T) *runtime.Scheme {
 	scheme := runtime.NewScheme()
