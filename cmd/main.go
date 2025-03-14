@@ -1,13 +1,14 @@
 package main
 
 import (
-	"context"
 	"log"
+	"context"
 
+	"k8s.io/client-go/rest"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
+	networkingv1 "k8s.io/api/networking/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	api "github.com/shlokc9/akuity-tenant-controller/api/v1alpha1"
@@ -27,6 +28,9 @@ func main() {
 	scheme := runtime.NewScheme()
 	if err = corev1.AddToScheme(scheme); err != nil {
 		log.Fatalf("error adding Kubernetes core API to scheme: %s", err)
+	}
+	if err = networkingv1.AddToScheme(scheme); err != nil {
+		log.Fatalf("error adding Kubernetes Networking API to scheme: %s", err)
 	}
 	if err = api.AddToScheme(scheme); err != nil {
 		log.Fatalf("error adding Akuity network API to scheme: %s", err)
