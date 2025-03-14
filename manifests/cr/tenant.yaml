@@ -1,0 +1,10 @@
+# Sample Tenant Resource
+apiVersion: network.akuity.io/v1alpha1
+kind: Tenant
+metadata:
+  name: sample-nginx-server
+spec:
+  additionalLabels:
+    nginx: dev
+  allowEgress: false
+---
