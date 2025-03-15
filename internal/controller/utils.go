@@ -82,6 +82,7 @@ func buildEgressRules(allowEgress bool) []networkingv1.NetworkPolicyEgressRule {
 				{
 					IPBlock: &networkingv1.IPBlock{
 						CIDR: ExternalEgressCIDR,
+						Except: []string{"10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12"},
 					},
 				},
 			},
