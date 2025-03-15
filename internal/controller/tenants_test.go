@@ -4,6 +4,7 @@ package controller
 import (
 	"time"
 	"context"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -38,7 +39,7 @@ func TestCreatesNamespaceAndNetworkPolicy(t *testing.T) {
 	tenant := createTenantResource("test-tenant", map[string]string{"foo": "bar"}, true)
 
 	// Creating a fake client preloaded with the Tenant. Initialize reconciler and request.
-	fakeClient, r, req:= createClientReconcilerAndRequest(scheme, tenant, nil)
+	fakeClient, r, req := createClientReconcilerAndRequest(scheme, tenant, nil)
 
 	// Reconciling and Requeing to create Namespace and NetworkPolicy.
 	ns, np := simulateReconcileAndRequeue(t, fakeClient, r, req, tenant)
@@ -54,10 +55,50 @@ func TestCreatesNamespaceAndNetworkPolicy(t *testing.T) {
 		}
 	}
 
-	// Checking that the NetworkPolicy has both egress rules:
-	// one for intra-namespace traffic and one for external egress (since AllowEgress is true).
+	// Verifying ingress rule. It should have one ingress rule with an empty PodSelector.
+	if len(np.Spec.Ingress) != 1 {
+		t.Errorf("expected 1 ingress rule, got %d", len(np.Spec.Ingress))
+	} else {
+		ingressRule := np.Spec.Ingress[0]
+		if ingressRule.From == nil || len(ingressRule.From) != 1 {
+			t.Errorf("expected ingress rule to have one 'from' peer, got %v", ingressRule.From)
+		} else {
+			peer := ingressRule.From[0]
+			if peer.PodSelector == nil || len(peer.PodSelector.MatchLabels) != 0 {
+				t.Errorf("expected empty PodSelector in ingress rule, got %v", peer.PodSelector)
+			}
+		}
+	}
+
+	// Checking that the NetworkPolicy has both egress rules.
 	if len(np.Spec.Egress) != 2 {
 		t.Errorf("expected 2 egress rules, got %d", len(np.Spec.Egress))
+	} else {
+		// Validating intra-namespace egress rule.
+		intraEgressRule := np.Spec.Egress[0]
+		if len(intraEgressRule.To) != 1 {
+			t.Errorf("expected intra-namespace egress rule to have 1 peer, got %d", len(intraEgressRule.To))
+		} else {
+			peer := intraEgressRule.To[0]
+			if peer.PodSelector == nil || len(peer.PodSelector.MatchLabels) != 0 {
+				t.Errorf("expected empty PodSelector in intra-namespace egress rule, got %v", peer.PodSelector)
+			}
+		}
+		// Validating external egress rule.
+		externalEgressRule := np.Spec.Egress[1]
+		if len(externalEgressRule.To) != 1 {
+			t.Errorf("expected external egress rule to have 1 peer, got %d", len(externalEgressRule.To))
+		} else {
+			peer := externalEgressRule.To[0]
+			if peer.IPBlock == nil || peer.IPBlock.CIDR != "0.0.0.0/0" {
+				t.Errorf("expected external egress rule to have IPBlock with CIDR 0.0.0.0/0, got %v", peer.IPBlock)
+			}
+			// Verifying contents of Except Internal CIDRs.
+			expectedExcept := []string{"10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12"}
+			if !reflect.DeepEqual(peer.IPBlock.Except, expectedExcept) {
+				t.Errorf("expected IPBlock.Except to be %v, got %v", expectedExcept, peer.IPBlock.Except)
+			}
+		}
 	}
 
 	// Calling Reconcile. This should stop the reconcile loop.
@@ -86,9 +127,35 @@ func TestNoExternalEgress(t *testing.T) {
 	// Reconciling and Requeing to create Namespace and NetworkPolicy.
 	_, np := simulateReconcileAndRequeue(t, fakeClient, r, req, tenant)
 
+	// Verifying ingress rule exists and is correct.
+	if len(np.Spec.Ingress) != 1 {
+		t.Errorf("expected 1 ingress rule, got %d", len(np.Spec.Ingress))
+	} else {
+		ingressRule := np.Spec.Ingress[0]
+		if ingressRule.From == nil || len(ingressRule.From) != 1 {
+			t.Errorf("expected ingress rule to have one 'from' peer, got %v", ingressRule.From)
+		} else {
+			peer := ingressRule.From[0]
+			if peer.PodSelector == nil || len(peer.PodSelector.MatchLabels) != 0 {
+				t.Errorf("expected empty PodSelector in ingress rule, got %v", peer.PodSelector)
+			}
+		}
+	}
+	
 	// When AllowEgress is false, we expect only the intra-namespace egress rule.
 	if len(np.Spec.Egress) != 1 {
 		t.Errorf("expected 1 egress rule, got %d", len(np.Spec.Egress))
+	} else {
+		// Validating that the egress rule is for intra-namespace traffic.
+		intraEgressRule := np.Spec.Egress[0]
+		if len(intraEgressRule.To) != 1 {
+			t.Errorf("expected intra-namespace egress rule to have 1 peer, got %d", len(intraEgressRule.To))
+		} else {
+			peer := intraEgressRule.To[0]
+			if peer.PodSelector == nil || len(peer.PodSelector.MatchLabels) != 0 {
+				t.Errorf("expected empty PodSelector in intra-namespace egress rule, got %v", peer.PodSelector)
+			}
+		}
 	}
 }
 
@@ -108,9 +175,50 @@ func TestAllowEgress(t *testing.T) {
 	// Reconciling and Requeing to create Namespace and NetworkPolicy.
 	_, np := simulateReconcileAndRequeue(t, fakeClient, r, req, tenant)
 
+	// Verifying ingress rule exists and is correct.
+	if len(np.Spec.Ingress) != 1 {
+		t.Errorf("expected 1 ingress rule, got %d", len(np.Spec.Ingress))
+	} else {
+		ingressRule := np.Spec.Ingress[0]
+		if ingressRule.From == nil || len(ingressRule.From) != 1 {
+			t.Errorf("expected ingress rule to have one 'from' peer, got %v", ingressRule.From)
+		} else {
+			peer := ingressRule.From[0]
+			if peer.PodSelector == nil || len(peer.PodSelector.MatchLabels) != 0 {
+				t.Errorf("expected empty PodSelector in ingress rule, got %v", peer.PodSelector)
+			}
+		}
+	}
+	
 	// Verifying that the NetworkPolicy has two egress rules (intra-namespace + external egress).
 	if len(np.Spec.Egress) != 2 {
-		t.Errorf("Expected 2 egress rules in network policy, got: %d", len(np.Spec.Egress))
+		t.Errorf("expected 2 egress rules in network policy, got: %d", len(np.Spec.Egress))
+	} else {
+		// Validating intra-namespace egress rule.
+		intraEgressRule := np.Spec.Egress[0]
+		if len(intraEgressRule.To) != 1 {
+			t.Errorf("expected intra-namespace egress rule to have 1 peer, got %d", len(intraEgressRule.To))
+		} else {
+			peer := intraEgressRule.To[0]
+			if peer.PodSelector == nil || len(peer.PodSelector.MatchLabels) != 0 {
+				t.Errorf("expected empty PodSelector in intra-namespace egress rule, got %v", peer.PodSelector)
+			}
+		}
+		// Validating external egress rule.
+		externalEgressRule := np.Spec.Egress[1]
+		if len(externalEgressRule.To) != 1 {
+			t.Errorf("expected external egress rule to have 1 peer, got %d", len(externalEgressRule.To))
+		} else {
+			peer := externalEgressRule.To[0]
+			if peer.IPBlock == nil || peer.IPBlock.CIDR != "0.0.0.0/0" {
+				t.Errorf("expected external egress rule to have IPBlock with CIDR 0.0.0.0/0, got %v", peer.IPBlock)
+			}
+			// Verifying contents of Except Internal CIDRs.
+			expectedExcept := []string{"10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12"}
+			if !reflect.DeepEqual(peer.IPBlock.Except, expectedExcept) {
+				t.Errorf("expected IPBlock.Except to be %v, got %v", expectedExcept, peer.IPBlock.Except)
+			}
+		}
 	}
 }
 
