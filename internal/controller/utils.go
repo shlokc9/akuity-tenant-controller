@@ -6,6 +6,7 @@ import (
 	
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
+	intstr "k8s.io/apimachinery/pkg/util/intstr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	api "github.com/shlokc9/akuity-tenant-controller/api/v1alpha1"
 )
@@ -77,13 +78,25 @@ func buildEgressRules(allowEgress bool) []networkingv1.NetworkPolicyEgressRule {
 	}
 	if allowEgress {
 		// Allow egress traffic to external destinations outside cluster.
+		udp := corev1.ProtocolUDP
+		tcp := corev1.ProtocolTCP
+		port := intstr.FromInt(53)
 		rules = append(rules, networkingv1.NetworkPolicyEgressRule{
 			To: []networkingv1.NetworkPolicyPeer{
 				{
 					IPBlock: &networkingv1.IPBlock{
 						CIDR: ExternalEgressCIDR,
-						Except: []string{"10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12"},
 					},
+				},
+			},
+			Ports: []networkingv1.NetworkPolicyPort{
+				{
+					Protocol: &udp,
+					Port: &port,
+				},
+				{
+					Protocol: &tcp,
+					Port: &port,
 				},
 			},
 		})

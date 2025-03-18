@@ -4,7 +4,6 @@ package controller
 import (
 	"time"
 	"context"
-	"reflect"
 	"strings"
 	"testing"
 
@@ -90,13 +89,8 @@ func TestCreatesNamespaceAndNetworkPolicy(t *testing.T) {
 			t.Errorf("expected external egress rule to have 1 peer, got %d", len(externalEgressRule.To))
 		} else {
 			peer := externalEgressRule.To[0]
-			if peer.IPBlock == nil || peer.IPBlock.CIDR != "0.0.0.0/0" {
-				t.Errorf("expected external egress rule to have IPBlock with CIDR 0.0.0.0/0, got %v", peer.IPBlock)
-			}
-			// Verifying contents of Except Internal CIDRs.
-			expectedExcept := []string{"10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12"}
-			if !reflect.DeepEqual(peer.IPBlock.Except, expectedExcept) {
-				t.Errorf("expected IPBlock.Except to be %v, got %v", expectedExcept, peer.IPBlock.Except)
+			if peer.IPBlock == nil || peer.IPBlock.CIDR != ExternalEgressCIDR {
+				t.Errorf("expected external egress rule to have IPBlock with external egress CIDR, got %v", peer.IPBlock)
 			}
 		}
 	}
@@ -210,13 +204,8 @@ func TestAllowEgress(t *testing.T) {
 			t.Errorf("expected external egress rule to have 1 peer, got %d", len(externalEgressRule.To))
 		} else {
 			peer := externalEgressRule.To[0]
-			if peer.IPBlock == nil || peer.IPBlock.CIDR != "0.0.0.0/0" {
-				t.Errorf("expected external egress rule to have IPBlock with CIDR 0.0.0.0/0, got %v", peer.IPBlock)
-			}
-			// Verifying contents of Except Internal CIDRs.
-			expectedExcept := []string{"10.0.0.0/8", "192.168.0.0/16", "172.16.0.0/12"}
-			if !reflect.DeepEqual(peer.IPBlock.Except, expectedExcept) {
-				t.Errorf("expected IPBlock.Except to be %v, got %v", expectedExcept, peer.IPBlock.Except)
+			if peer.IPBlock == nil || peer.IPBlock.CIDR != ExternalEgressCIDR {
+				t.Errorf("expected external egress rule to have IPBlock with external egress CIDR, got %v", peer.IPBlock)
 			}
 		}
 	}

@@ -13,7 +13,7 @@ const (
 	TenantNetworkPolicyName = "tenant-network-policy"
 
 	// ExternalEgressCIDR is the CIDR block used to allow external traffic when enabled.
-	ExternalEgressCIDR = "0.0.0.0/0"
+	ExternalEgressCIDR = "10.96.0.10/32"
 
 	// Error Handling and Logging constants
 	Tenant = "tenant"
