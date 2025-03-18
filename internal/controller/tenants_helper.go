@@ -30,6 +30,9 @@ func (r *reconciler) handleFinalization(ctx context.Context, tenant *api.Tenant)
 	logger.Info("Tenant marked for deletion; running finalization")
 	nsName := tenant.Name
 	namespace := &corev1.Namespace{}
+	if !isNamespaceOwnedByTenant(namespace, tenant) {
+		return nil
+	}
 	if err := r.client.Get(ctx, client.ObjectKey{Name: nsName}, namespace); err != nil {
 		if k8serrors.IsNotFound(err) {
 			logger.Info("Namespace already deleted", "namespace", nsName)
