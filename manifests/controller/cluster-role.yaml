@@ -11,6 +11,7 @@ rules:
   - network.akuity.io
   resources:
   - tenants
+  - tenants/status
   verbs:
   - get
   - list
