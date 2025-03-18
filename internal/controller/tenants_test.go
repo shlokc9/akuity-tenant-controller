@@ -532,7 +532,7 @@ func TestTenantCleanupProcess(t *testing.T) {
 	fakeClient, r, req:= createClientReconcilerAndRequest(scheme, tenant, nil)
 
 	// Reconciling and Requeing to create Namespace and NetworkPolicy.
-	_, _ = simulateReconcileAndRequeue(t, fakeClient, r, req, tenant)
+	ns, _ := simulateReconcileAndRequeue(t, fakeClient, r, req, tenant)
 
 	// Instead of patching/updating deletionTimestamp (which is immutable in the fake client),
 	// we are simulating deletion by directly calling the finalization logic.
@@ -551,6 +551,11 @@ func TestTenantCleanupProcess(t *testing.T) {
 	tenant.Finalizers = removeString(tenant.Finalizers, TenantFinalizer)
 	if err := fakeClient.Update(ctx, tenant); err != nil {
 		t.Fatalf("Failed to update tenant after finalization: %v", err)
+	}
+
+	// Simulating deletion of the Namespace.
+	if err := fakeClient.Delete(ctx, ns); err != nil {
+		t.Fatalf("Failed to delete namespace: %v", err)
 	}
 
 	// Verifying that the dependent namespace is deleted.
