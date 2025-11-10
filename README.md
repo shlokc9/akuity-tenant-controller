@@ -1,7 +1,6 @@
 # Akuity Take Home Coding Challenge
 
-Congratulations on making it to a new stage of the Akuity Engineering interview
-process. We are excited to see what you can do!
+Congratulations on making it to a new stage of the Akuity Engineering challenge. We are excited to see what you can do!
 
 ## Overview
 
@@ -196,8 +195,6 @@ Candidates are permitted up to one full week to complete this challenge.
 although the challenge is designed to be completed with no more than one day's
 worth of effort.
 
-The hiring manager will inform you of the exact deadline for your submission.
-
 ## Deliverables
 
 Once you have completed the challenge, please push your solution to a new,
@@ -205,10 +202,7 @@ _private_ repository on GitHub. If you have not used the provided scaffolding
 or have modified it extensively, please ensure the repository's `README.md`
 contains adequate documentation for building and deploying your solution.
 
-Reach out to the hiring manager to ask their GitHub username if they have not
+Reach out to the team to ask their GitHub username if they have not
 already provided it to you. Add the hiring manager as a collaborator on your
 private repository so they will be able to access your solution. They may share
 it with other Akuity staff tasked with reviewing it.
-
-The hiring manager may also arrange a live demonstration or request a
-pre-recorded one.
