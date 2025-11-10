@@ -203,6 +203,6 @@ or have modified it extensively, please ensure the repository's `README.md`
 contains adequate documentation for building and deploying your solution.
 
 Reach out to the team to ask their GitHub username if they have not
-already provided it to you. Add the hiring manager as a collaborator on your
+already provided it to you. Add the judge as a collaborator on your
 private repository so they will be able to access your solution. They may share
 it with other Akuity staff tasked with reviewing it.
